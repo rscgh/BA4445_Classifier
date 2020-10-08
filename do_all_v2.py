@@ -1,6 +1,18 @@
 #!/usr/local/bin/python
 # -*- coding: utf-8 -*-
 
+
+'''
+based off an collection of scripts found on 
+Original Author(s):
+Estrid Jakobsen, https://github.com/Estrid
+Daniel Margulies, https://github.com/margulies
+
+@2020
+
+'''
+
+
 import nibabel as nib
 import numpy as np
 #from scipy.io import savemat
