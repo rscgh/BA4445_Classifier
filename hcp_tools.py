@@ -1,4 +1,16 @@
 
+'''
+
+based off the original script by Şeyma Bayrak, https://github.com/sheyma
+repository located on: https://github.com/NeuroanatomyAndConnectivity/hcp_corr
+
+code was a bit more streamlined and put up to date
+furthermore the option for smoothing was added; for that the wb_command needs to be available from the systems terminal
+
+'''
+
+
+
 ## called from ICA_HCP like:
 ## t_series(subject = "/scr/murg2/HCP_Q3_glyphsets_left-only/100307", hemisphere='LH', N_first=0, N_cnt=32492)
 ## K = t_series(subject = "/data/t_hcp/S500_2014-06-25/_all/100307", hemisphere='LH', N_first=0, N_cnt=32492)
