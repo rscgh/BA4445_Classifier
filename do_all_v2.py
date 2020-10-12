@@ -539,7 +539,7 @@ for sub in subs:
 
     E3A = np.loadtxt('/data/hu_robertscholz/Desktop/owncloud-gwdg/code/neuralgradients/BrocaLabels/HCP/automated_labels/results/%s_ICA_indiv_SW_rm_0p4.1D' % (sub))
     EMW44 = np.loadtxt('/data/hu_robertscholz/Desktop/owncloud-gwdg/code/neuralgradients/BrocaLabels/HCP/manual_labels/area44/BA44_%s.1D' % (sub))
-    EMW45 = np.loadtxt('/data/hu_robertscholz/Desktop/owncloud-gwdg/code/neuralgradients/BrocaLabels/HCP/manual_labels/area45/BA45_%s.1D' % (sub)) +1
+    EMW45 = np.loadtxt('/data/hu_robertscholz/Desktop/owncloud-gwdg/code/neuralgradients/BrocaLabels/HCP/manual_labels/area45/BA45_%s.1D' % (sub)) *2
     #hcp_tools.save_dscalar( e3afile, np.expand_dims(E3A[cort],axis=0), brainmodel = brainmodel, scalar_names = ['Estrids_Stuff'])
 
     indv_assignm_file =os.path.join(out_folder_p,"results", "AutoAreaLabelFinal_HCP_indv_" + sub+"_LH29k_WTA44_45.dscalar.nii")
