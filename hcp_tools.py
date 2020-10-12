@@ -1,3 +1,5 @@
+#!/usr/local/bin/python
+# -*- coding: utf-8 -*-
 
 '''
 
@@ -22,6 +24,7 @@ import os
 import nibabel as nib
 import numpy as np
 import subprocess
+
 
 #previously called: t_series
 def preprocess_and_load_tseries(subject_dir,      # i.e. "/scr/murg2/HCP_Q3_glyphsets_left-only/100307"
@@ -235,3 +238,53 @@ def preprocess_and_load_tseries(subject_dir,      # i.e. "/scr/murg2/HCP_Q3_glyp
         
     return K
 
+
+
+
+############################
+# Saving files
+
+
+
+def save_LH_29k_dtseries():
+    pass;
+
+
+
+
+# this is not really functional yet ...
+def get_LH_29k_brainmodel(mask_indices = None, extract_brain_mode_from_file = None, area_list = ["LH"] ):
+
+  if mask_indices is None: 
+      if extract_brain_mode_from_file is None:
+        extract_brain_mode_from_file = '/data/t_hcp/S500_2014-06-25/_all/100307/MNINonLinear/Results/rfMRI_REST1_LR/rfMRI_REST1_LR_Atlas_hp2000_clean.dtseries.nii';
+
+      img = nib.load(extract_brain_mode_from_file)
+      cort = list(img.header.matrix._mims[1].brain_models)[0].vertex_indices._indices
+      mask_indices = cort
+
+  mask = np.zeros((32492)); np.put(mask, mask_indices, 1)
+  brainmodel = nib.cifti2.BrainModelAxis.from_mask(mask, "LEFT_CORTEX")
+  return brainmodel
+
+
+
+# data should be numpy array of (n_scalars, n_vertices) i.e. 10, 29696
+def save_dscalar(filename, data, brainmodel, scalar_names = None, subset = None):
+
+  n_scalars = data.shape[1];
+  n_vertices = brainmodel.size;    # i.e. 29696 for only left hemisphere in 32k_FS_LR
+
+  if scalar_names is None: 
+    scalar_names = [str(x) for x in range(data.shape[1])]
+
+  new_scalar_axis = nib.cifti2.ScalarAxis(scalar_names);
+  ni_header = nib.cifti2.Cifti2Header.from_axes((new_scalar_axis, brainmodel))
+
+  if not(subset is None):
+    newdata = np.zeros((n_scalars, n_vertices))
+    newdata[:,subset] = data;
+    data = newdata;
+
+  nib.Cifti2Image( data, ni_header).to_filename(filename);
+  return;

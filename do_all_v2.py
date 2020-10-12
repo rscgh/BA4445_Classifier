@@ -22,7 +22,7 @@ import os
 import hdf5storage
 
 #from helpers.load_hcp_annotated_rsc import t_series 
-from hcp_tools import preprocess_and_load_tseries
+import hcp_tools
 from partial_corr import partial_corr
 
 
@@ -79,12 +79,13 @@ for sub in subs:
         print(filename);
         print("Skip ahead to the extraction for the next subject ...")#
         filenames.append(filename)
+        new_subs.append(sub)
         continue;
 
 
     #data = t_series(subject = hcp_all_path + "/%s" % sub, hemisphere='LH', N_first=0, N_cnt=32492)
     #dataxx = t_series(subject = hcp_all_path + "/%s" % sub, hemisphere='LH', N_first=0, N_cnt=32492, normalize=False)
-    data = preprocess_and_load_tseries(hcp_all_path + "/%s" % sub, sub, N_first = 0, N_cnt = 32492, smoothing = True, normalize=True, keep_tmp_files= keep_all_files, temp_dir=os.path.join(out_folder_p, "indv")) # returns (4800, 32492)
+    data = hcp_tools.preprocess_and_load_tseries(hcp_all_path + "/%s" % sub, sub, N_first = 0, N_cnt = 32492, smoothing = True, normalize=True, keep_tmp_files= keep_all_files, temp_dir=os.path.join(out_folder_p, "indv")) # returns (4800, 32492)
 
     # saving as real cifti for visualization
     if keep_all_files: 
@@ -147,6 +148,7 @@ else:
  group_ica = components_img.get_data().squeeze() # components_img.get_data().squeeze() is of shape (29696, 20) != canica.components_
 
  #np.save('/scr/murg2/MachineLearning/partialcorr/ICA/ICA_HCP/ica_HCP101_output_%s.npy' % str(n_components), A)
+ print("Saving Group ICA: ", group_ica_fn)
  hdf5storage.savemat(group_ica_fn, {'ic':group_ica})
 
 
@@ -167,12 +169,13 @@ cimg_ica_comp.to_filename(out_folder_p + '/ica_HCP' + str(len(filenames)) +'_20c
 ##   /data/pt_02189/MARHCP/BrocaConn/indv/100307_ica_HCP_20comps_output.mat'
 ###############################################################################
 
+print("Do indv ica: ", subs, filenames)
 
 
 ## RUN ICA ON INDIVIDUAL LEVEL:
 for (sub, filename) in zip(subs, filenames):
     
-    ind_ica_fn =os.path.join(out_folder_p,"ica_HCP_indv_", sub+"_LH29k_20comps.mat")
+    ind_ica_fn =os.path.join(out_folder_p,"indv", "ica_HCP_indv_" + sub+"_LH29k_20comps.mat")
     
     if os.path.exists(ind_ica_fn):
         print("Ica already has been extracted for the subject and is stored in: ")
@@ -186,10 +189,10 @@ for (sub, filename) in zip(subs, filenames):
     canica_ind.fit(filename)
         
     # Retrieve the independent components in brain space
-    components_img_ind = canica.masker_.inverse_transform(canica_ind.components_)
+    components_img_ind = canica_ind.masker_.inverse_transform(canica_ind.components_)
         
     Aind = components_img_ind.get_data().squeeze() # (29696,n_components)
-
+    print("  Saving Indv ICA: ", ind_ica_fn)
     hdf5storage.savemat(ind_ica_fn, {'ic':Aind})
 
     #nib.Cifti2Image(Aind, nih).to_filename(out_folder_p + '/individual/' + sub + 'ica_HCP_20comps_output.dscalar.nii');
@@ -203,7 +206,7 @@ for (sub, filename) in zip(subs, filenames):
 ##    * indices that were used to recude the left hemisphere from 32492 svox to 29696
 ## - Output: 
 ##    * binary brocas mask of size (32492,) 
-##        saved in /data/pt_02189/MARHCP/BrocaConn/brocas_mask_1396_of_32492_bin.txt
+##        saved in /data/pt_02189/MARHCP/BrocaConn/indv/BROCAMSK_HCP_indv_brocas_mask_1396_of_32492_bin.txt
 ##     * (optional) Individual correlation matrices of shape: (29696, 1396)
 ##        saved as /data/pt_02189/MARHCP/BrocaConn/indv/100307_corrmat_broca_29696x 1396_nosmt.mat
 ##     * Group level correlation matrix of shape (29696, 1396)
@@ -217,18 +220,16 @@ cort2 = np.loadtxt(out_folder_p + '/indices_LH_29696_of_32492.txt').astype(np.in
 
 
 def get_individual_IFG(sub, hcp_all_path = '/data/t_hcp/S500_2014-06-25/_all'):
-
-    anatlabp = os.path.join(hcp_all_path, sub, '/MNINonLinear/fsaverage_LR32k/%s.L.aparc.32k_fs_LR.label.gii' % (sub))
+    anatlabp = os.path.join(hcp_all_path, sub, 'MNINonLinear/fsaverage_LR32k/%s.L.aparc.32k_fs_LR.label.gii' % (sub))
     AnatLabels = nib.load(anatlabp) #AnatLabels2 = nib.gifti.giftiio.read(anatlabp)
     #AnatLabels.print_summary()
     #AnatLabels.get_labeltable().labels[20].label #-> u'L_parstriangularis'
     #AnatLabels.darrays[0].data.shape #-> (32492,); elements: array([10, 29, 24, ..., 15, 15, 15], dtype=int32)
-
     AnatLabelsData= AnatLabels.darrays[0].data
     op = AnatLabelsData == 18;                          # shape: (32492,)
     tri = AnatLabelsData == 20;
     #np.count_nonzero((op+tri)) # -> 989 voxels in the combined region
-    return op + tri;
+    return [op, tri];
 
 
 # get manual probability maps
@@ -247,22 +248,29 @@ prob45b[prob45b>0] = True
 #indv_conn_tmpls_44_prelim = np.zeros((len(sub), len(cont2)))
 #indv_conn_tmpls_45_prelim= np.zeros((len(sub), len(cont2)))
 
-indv_conn_tmpls_44_prelim = np.zeros((len(sub), 29696))
-indv_conn_tmpls_45_prelim= np.zeros((len(sub), 29696))
+indv_conn_tmpls_44_prelim = np.zeros((len(subs), 29696))
+indv_conn_tmpls_45_prelim= np.zeros((len(subs), 29696))
+print(indv_conn_tmpls_44_prelim.shape)
 
+
+
+print(list(range(len(subs))) ,subs[:3], filenames[:3])
 
 for (n, sub, filename) in zip(list(range(len(subs))) ,subs, filenames):
 
-
-    icm_fn = out_folder_p + 'indv/CON_HCP_indv_' + sub + '_broca_LH29k_con.mat'; 
-    ict_fn = out_folder_p + 'indv/CON_HCP_indv_' + sub + '_broca_LH29k_con_tmpls_44_45.prelim.mat'; 
+    print(n, "th connectivity matrix. its for subject: ", sub)
+    icm_fn = out_folder_p + '/indv/CON_HCP_indv_' + sub + '_broca_LH29k_con.mat'; 
+    ict_fn = out_folder_p + '/indv/CON_HCP_indv_' + sub + '_broca_LH29k_con_tmpls_44_45.prelim.mat'; 
     if os.path.exists(icm_fn) and os.path.exists(ict_fn):
      print("connectivity mat has already has been computed for the subject and is stored in: ")
      print(icm_fn);
      print("Load and skip ahead to the extraction for the next subject ...")
-     ind_prelim_conn_tmpls = hdf5storage.loadmat(ict_fn, {'ct44':ict45.astype(np.float32), 'ct55': ict45.astype(np.float32)}) 
-     indv_conn_tmpls_44_prelim[n,:] = ind_prelim_conn_tmpls['ct44']
-     indv_conn_tmpls_45_prelim[n,:] = ind_prelim_conn_tmpls['ct45']
+     ind_prelim_conn_tmpls = hdf5storage.loadmat(ict_fn) 
+     # some problem with hdf5 storage reading in mat files with multiple matrices yieling unicode keys for dict
+     [ct44k, ct45k] = [x for x in ind_prelim_conn_tmpls.keys()]
+     print([ct44k, ct45k])
+     indv_conn_tmpls_44_prelim[n,:] = ind_prelim_conn_tmpls[ct44k]
+     indv_conn_tmpls_45_prelim[n,:] = ind_prelim_conn_tmpls[ct45k]
      continue;
 
 
@@ -275,9 +283,10 @@ for (n, sub, filename) in zip(list(range(len(subs))) ,subs, filenames):
     cmat = np.corrcoef(time_series) # shape (29696, 29696) each voxel with each other
     # cmat[1000,2000] == cmat[2000,1000]
 
-    broca = prob44b + prob45b + get_individual_IFG(sub, hcp_all_path = hcp_all_path);
+    [op,tr] = get_individual_IFG(sub, hcp_all_path = hcp_all_path);
+    broca = prob44b + prob45b + op+tr;
     # reduce the broca mask to the voxels present in the corrmatrix
-    broca_reduced = broca[cort].astyoe(np.bool) # from shape 32492 to 29696; contains 1396 x True
+    broca_reduced = broca[cort].astype(np.bool) # from shape 32492 to 29696; contains 1396 x True
     bfn = os.path.join(out_folder_p,'indv', 'BROCAMSK_HCP_indv_%s_%i_of_%i_bin.txt' % (sub, np.count_nonzero(broca_reduced) , len(cort)))
     np.savetxt(bfn, broca_reduced)
 
@@ -295,7 +304,9 @@ for (n, sub, filename) in zip(list(range(len(subs))) ,subs, filenames):
     ## and only later set individual level connectivity maps again
     ## when regressing out other factors of the resting state, as proxied by the ICA
 
-    hdf5storage.savemat(ict_fn, {'ct44':indv_conn_tmpls_44_prelim.astype(np.float32), 'ct55': indv_conn_tmpls_45_prelim.astype(np.float32)}) 
+    print("Saving Indv connectivity template: ", ict_fn)
+    hdf5storage.savemat(ict_fn, {'ct44':ict44_prelim.astype(np.float32), 'ct55': ict45_prelim.astype(np.float32)}) 
+    print("Saving Indv redcued connectivity matrix: ", icm_fn)
     hdf5storage.savemat(icm_fn, {'icm': cmat_small.astype(np.float32)})
 
 
@@ -310,20 +321,42 @@ grp_conn_tmpl_45 = np.tanh(ict45pz.mean(axis=0))
 
 grconntmplfn = out_folder_p + '/CON_HCP_all' + str(len(filenames)) +'_broca_LH29k_con_tmpls_44_45.mat'
 hdf5storage.savemat(grconntmplfn, {'ct44':grp_conn_tmpl_44, 'ct45': grp_conn_tmpl_45 })
-print("All done for now")
-exit()
+
+
+brainmodel = hcp_tools.get_LH_29k_brainmodel()
+dscfn = grconntmplfn.rstrip('.mat') + '.dscalar.nii'
+hcp_tools.save_dscalar(dscfn, np.vstack((grp_conn_tmpl_44, grp_conn_tmpl_45)), brainmodel = brainmodel, scalar_names = ['grp_conn_tmpl_44', 'grp_conn_tmpl_45'])
+
+
+
 
 
 ###############################################################################
 ## Classify Ba44/45 in subjects now ....
 ###############################################################################
 
+print("\n\n\n\nFinally Start with the classification: ")
 
-'''
-variables for classifier 
+
+#  variables for classifier 
 corrthresh = 0.4;
 
+from partial_corr import pengouin_part_corr_copy
+import glob
+
 '''
+import hcp_tools, glob, hdf5storage, os, numpy as np, nibabel as nib
+grconntmplfn = glob.glob(os.path.join(out_folder_p, 'CON_HCP_all*_broca_LH29k_con_tmpls_44_45.mat'))[0]
+grp_conn_tmpl_44 =  hdf5storage.loadmat(grconntmplfn)['ct44']
+grp_conn_tmpl_45 =  hdf5storage.loadmat(grconntmplfn)['ct45']
+
+# also needs icm_fn = out_folder_p + '/indv/CON_HCP_indv_' + sub + '_broca_LH29k_con.mat'; 
+
+
+'''
+print("Load group ica info: ",group_ica_fn)
+group_ica_fn = glob.glob(os.path.join(out_folder_p, 'ica_HCP_all*_LH29k_20comps.mat'))[0]
+group_ica = hdf5storage.loadmat(group_ica_fn)['ic']
 
 
 ### run spatial correlation between group_connectivity_templates/maps and group_level_ICA_components to find which ICA component corresponds to either areas connecctivity pattern
@@ -332,12 +365,16 @@ corrthresh = 0.4;
 ica_gcon44_corr = np.zeros(20)
 ica_gcon45_corr = np.zeros(20)
 
+#https://stackoverflow.com/questions/29481518/python-equivalent-of-matlab-corr2
+#np.corrcoef(grp_conn_tmpl_44, group_ica[:, 0])[0,1] == corr2(grp_conn_tmpl_44, group_ica[:, 0])
+
 #group_ica of shape (32492,20)
 for icn  in range(group_ica.shape[1]):
   #ica_gcon44_corr[icn] = corr2(grp_conn_tmpl_44, group_ica[cort, icn])
-  ica_gcon44_corr[icn] = corr2(grp_conn_tmpl_44, group_ica[:, icn])
-  ica_gcon45_corr[icn] = corr2(grp_conn_tmpl_45, group_ica[:, icn])
+  ica_gcon44_corr[icn] = np.corrcoef(grp_conn_tmpl_44, group_ica[:, icn])[0,1]
+  ica_gcon45_corr[icn] = np.corrcoef(grp_conn_tmpl_45, group_ica[:, icn])[0,1]
 
+#ica_gcon44_corr.max() ~ 0.45; #ica_gcon45_corr.max() ~ 0.66
 
 
 ### find the voxels in the indivial connectivity matrix that correlate best with the group connectivity map when controlling for other group ICA components
@@ -346,84 +383,112 @@ for icn  in range(group_ica.shape[1]):
 # get the indices of the x biggest correlations
 #ica_gcon44_corr.argsort()[-2:][::-1]
 
-# get the indices of correlation that are smaller than the threshold
-ica_44_ctrl_ind = np.argwhere(ica_gcon44_corr<=threshold)
-ica_45_ctrl_ind = np.argwhere(ica_gcon45_corr<=threshold)
+# get the indices of correlation that are higher than the threshold
+ica_44_ctrl_excl = np.argwhere(ica_gcon44_corr>corrthresh)
+ica_45_ctrl_excl = np.argwhere(ica_gcon45_corr>corrthresh)
+
+iica_incl_ind =[x for x in range(group_ica.shape[1]) if x not in np.concatenate((ica_44_ctrl_excl, ica_45_ctrl_excl)).squeeze()]
 
 # also add the opposites area connectivity map as control
-controls44 = np.concatenate((group_ica[:,ica_44_ctrl_ind], grp_conn_tmpl_45), axis=1)
-controls45 = np.concatenate((group_ica[:,ica_45_ctrl_ind], grp_conn_tmpl_44), axis=1)
+'''
+grp_conn_tmpl_45.shape => (29696,), after expand_dims (29696,1)
+group_ica. shape => (29696, 20)
+group_ica[:,ica_44_ctrl_ind].shape = (29696, 17, 1); after squeeze: (29696, 17)
+
+'''
+controls44 = np.concatenate((group_ica[:,iica_incl_ind].squeeze(), np.expand_dims(grp_conn_tmpl_45, axis=1)), axis=1) # shape i.e (29696, 18)
+controls45 = np.concatenate((group_ica[:,iica_incl_ind].squeeze(), np.expand_dims(grp_conn_tmpl_44, axis=1)), axis=1)
+
+#hdf5storage.savemat('/data/pt_02189/MARHCP/BrocaConn/indv/CON_HCP_group_broca_LH29k_controls44.mat', {'controls44':controls44 })
 
 
 ### find the voxels in the indivial connectivity matrix that correlate best with the individual connectivity template/map (just derived) when controlling for individual other ICA components 
 # this makes it nicer?
 
 
-'''
-reading things for stepping in here?
-xxxx = hdf5storage.loadmat(file_name)['key']
-'''
-
-
-
 for sub in subs:
+
+    #sub = '103414'
 
     area_assignment_file = os.path.join(out_folder_p, "indv", 'AA_HCP_indv_%s_ba44_45_none.LH.dscalar.nii' % (sub))
     if os.path.exists(area_assignment_file):
       print("Classification output already exists: \n", area_assignment_file)
       continue;
 
+    print("------------------------------------------------------------\n")
+    print("Start classification for ", sub)
 
-    icm_fn = out_folder_p + 'indv/' + sub + '_broca_con.mat'; 
+    icm_fn = out_folder_p + '/indv/CON_HCP_indv_' + sub + '_broca_LH29k_con.mat'; 
     ind_cor_mat_broca =  hdf5storage.loadmat(icm_fn)['icm']
+
+    print("Load: ",icm_fn)
 
     # find the broca voxel that has (have) the most sterotypical connectivity for eiteher area 44 or 45, use the ICA group components as control
 
     # probably need to be reduced to cort2 both group conn tmpl and controls
-    partcorr44 = partialcorr(ind_cor_mat_broca, grp_conn_tmpl_44, controls44)
-    partcorr45 = partialcorr(ind_cor_mat_broca, grp_conn_tmpl_45, controls45)
+    #partcorr44 = partial_corr(ind_cor_mat_broca, grp_conn_tmpl_44, controls44)
+    # takes input in the format of one image/data_vector per row, hence we need to transform
+    partcorr44 = pengouin_part_corr_copy(ind_cor_mat_broca.T, grp_conn_tmpl_44.T, controls44.T)
+    partcorr45 = pengouin_part_corr_copy(ind_cor_mat_broca.T, grp_conn_tmpl_45.T, controls45.T)
+    #hdf5storage.savemat('/data/pt_02189/MARHCP/BrocaConn/indv/partcorr44.mat', {'partcorr44':partcorr44 })
+    # correlates with the matlab results with r = corr(pc44,partcorr44') == 0.9966
 
+    # 5% of the total voxel count; for estimation of the indivial connectivity maps/templates
+    # average over these average_n_voxels voxels that have the highest correlation with the group connectivtiy tamplates, when correcting for other group ica compoennts and the opposites area connectivity map
     average_n_voxels = int(0.05* ind_cor_mat_broca.shape[1]) #top 5% of voxels or top 1 voxel
 
-    ## check this again !!!!!!!!!!!!!!!!!!!!!!!!!!
-    ict44 = ind_cor_mat_broca[:,partcorr44.argsort()[-average_n_voxels:].mean(axis=1)]
-    ict45 = ind_cor_mat_broca[:,partcorr45.argsort()[-average_n_voxels:].mean(axis=1)]
+    ## check this again !!
+    ict44 = ind_cor_mat_broca[:,partcorr44.argsort()[-average_n_voxels:]].mean(axis=1)
+    ict45 = ind_cor_mat_broca[:,partcorr45.argsort()[-average_n_voxels:]].mean(axis=1)
 
-    ### find the voxels in the indivial connectivity matrix that correlate best with  individual other ICA components when controls44ling for all other ICA components
-    ind_ica_fn =os.path.join(out_folder_p,"ica_HCP_indv_", sub+"_LH29k_20comps.mat")
+    #if KEEP_FIRST_SUBJ_INTERM_DATA and (sub == '103414'):
+    ictnew_fn = os.path.join(out_folder_p, 'indv', 'CON_HCP_indv_%s_broca_LH29k_con_tmpls_44_45.dscalar.nii' % (sub) ); 
+    hcp_tools.save_dscalar( ictnew_fn, np.vstack((ict44, ict45)), brainmodel = brainmodel, scalar_names = ['ict44','ict45'])
+    #hcp_tools.save_dscalar( ictnew_fn, np.expand_dims(ict44, axis=0), brainmodel = brainmodel, scalar_names = ['ict44'])
+    print("Save refined individual connectivity templates to:\n",ictnew_fn)
+
+
+    ### find strength of correlation of the voxels in the indivial connectivity matrix with the individual conn template when controlling for ICA components
+    ### basically repeats the previous steps, just refines it by using individual data
+
+    # first we got to find again the ICA components that correspond to connectivity best, as we dont want to use them as control components (as that would regress out variable that could be explained by the individual connectivity template)
+    ind_ica_fn =os.path.join(out_folder_p,"indv", "ica_HCP_indv_" + sub+"_LH29k_20comps.mat")
     indv_ica = hdf5storage.loadmat(ind_ica_fn)['ic']
+    print("Load: ",ind_ica_fn)
 
     ica_icon44_corr = np.zeros(20)
     ica_icon45_corr = np.zeros(20)
-
     #indv_ica of shape (32492,20)
     for icn  in range(indv_ica.shape[1]):
-      ica_icon44_corr[icn] = corr2(ict44, indv_ica[:, icn])
-      ica_icon44_corr[icn] = corr2(ict45, indv_ica[:, icn])
+      #ica_icon44_corr[icn] = corr2(ict44, indv_ica[:, icn])
+      ica_icon44_corr[icn] = np.corrcoef(ict44, indv_ica[:, icn])[0,1]
+      ica_icon45_corr[icn] = np.corrcoef(ict45, indv_ica[:, icn])[0,1]
 
     # get the indices of correlation that are smaller than the threshold
     # these are the nn connectivity related components, hopefully
-    iica_44_exl_ind = np.argwhere(ica_icon44_corr>threshold)
-    iica_45_exl_ind = np.argwhere(ica_icon44_corr>threshold)
-    iica_incl_ind   =[x for x in range(indv_ica.shape[1]) if x not in (iica_44_exl_ind + iica_44_exl_ind)]
+    iica_44_exl_ind = np.argwhere(ica_icon44_corr>corrthresh)
+    iica_45_exl_ind = np.argwhere(ica_icon45_corr>corrthresh)
+    iica_incl_ind   =[x for x in range(indv_ica.shape[1]) if x not in np.concatenate((iica_44_exl_ind, iica_45_exl_ind)).squeeze()]
     remaining_iica_ctrl = indv_ica[:,iica_incl_ind];    
 
     # also add the opposites area individual connectivity map as control
-    indcontrols44 = np.concatenate((remaining_iica_ctrl, ict45), axis=1)
-    indcontrols45 = np.concatenate((remaining_iica_ctrl, ict44), axis=1)
+    indcontrols44 = np.concatenate((remaining_iica_ctrl, np.expand_dims(ict45, axis=1) ), axis=1)
+    indcontrols45 = np.concatenate((remaining_iica_ctrl, np.expand_dims(ict44, axis=1) ), axis=1)
 
     # then do better partial correlations
-    indpartcorr44 = partialcorr(ind_cor_mat_broca, ict44, indcontrols44)    # shape (nbroca,)
-    indpartcorr45 = partialcorr(ind_cor_mat_broca, ict45, indcontrols45)
+    #indpartcorr44 = partialcorr(ind_cor_mat_broca, ict44, indcontrols44)    # shape (nbroca,)
+    indpartcorr44 = pengouin_part_corr_copy(ind_cor_mat_broca.T, ict44.T, indcontrols44.T)
+    indpartcorr45 = pengouin_part_corr_copy(ind_cor_mat_broca.T, ict45.T, indcontrols45.T)
 
 
     # Optional: run partial correlations for remaining ICA components
 
     
-    partcorrIC = zeros(  len(broca_reduced)  , remaining_iica_ctrl.shape[1])
+    # shape: (number of vertices in broca, number of ICA components)
+    partcorrIC = np.zeros((  ind_cor_mat_broca.shape[1], remaining_iica_ctrl.shape[1]))
     for x in range(remaining_iica_ctrl.shape[1]):
-      controls = np.concatenate(( np.delete(remaining_iica_44_ctrl, x, axis=1), ict44, ict45 ), axis=1)
-      partcorr = partialcorr(ind_cor_mat_broca, remaining_iica_44_ctrl[:,x], controls);
+      controls = np.concatenate(( np.delete(remaining_iica_ctrl, x, axis=1), np.expand_dims(ict44, axis=1), np.expand_dims(ict45, axis=1) ), axis=1)
+      partcorr = pengouin_part_corr_copy(ind_cor_mat_broca.T, remaining_iica_ctrl[:,x].T, controls.T);
       partcorrIC[:,x] = partcorr;
 
 
@@ -436,13 +501,13 @@ for sub in subs:
     # log whatever 
 
     # reload the brca mask from before
-    broca = prob44b + prob45b + get_individual_IFG(sub, hcp_all_path = hcp_all_path);
+    [op,tr] = get_individual_IFG(sub, hcp_all_path = hcp_all_path);
+    broca = prob44b + prob45b + op + tr
     # reduce the broca mask to the voxels present in the corrmatrix
-    broca_reduced = broca[cort].astyoe(np.bool) # from shape 32492 to 29696; contains 1396 x True
+    broca_reduced = broca[cort].astype(np.bool) # from shape 32492 to 29696; contains 1396 x True
 
-
-    prob44br = prob44p[broca_reduced];
-    prob45br = prob44p[broca_reduced];
+    prob44br = prob44[broca_reduced];
+    prob45br = prob45[broca_reduced];
     prob45br = np.where(prob45br==0, prob45br[prob45br>0].min(), prob45br) #  set zeros within broca to minimum nonzero value
     prob44br = np.where(prob44br==0, prob45br[prob44br>0].min(), prob44br)
 
@@ -450,30 +515,38 @@ for sub in subs:
     log10 = np.log10(prob44br); norm44br = (log10 - log10.min()) / (log10.max()-log10.min())
 
 
-    #brain_ind_part_corr44_sw = norm44 * brain_ind_part_corr44;
-    brain_ind_part_corr44_sw = zeros(29696);
-    brain_ind_part_corr45_sw = zeros(29696);
-    brain_ind_part_corr44_sw[broca_reduced] = norm44br * indpartcorr44
-    brain_ind_part_corr44_sw[broca_reduced] = norm45br * indpartcorr45
-
+    #weight the individual part corrleation results with the individual anatomical information
+    indpartcorr44_sw  = norm44br * indpartcorr44
+    indpartcorr45_sw  = norm45br * indpartcorr45
+    
     ##### WTA
 
     #imaps= np.concatenate((brain_ind_part_corr44_sw, brain_ind_part_corr45_sw ''', partcorrIC'''), axis=0);
-    imaps = np.stack((brain_ind_part_corr44_sw, brain_ind_part_corr45_sw, partcorrIC))
-    area_assignments_ba44_45_none = np.argmax( imaps, axis=0)
-    #wta_classification 0 ~ 44, 1 ~ 45, 2 ~ nieghter
 
-    new_scalar_axis = nib.cifti2.ScalarAxis(['area_assignments_ba44_45_none']);
+    imaps = np.concatenate(( np.expand_dims(indpartcorr44_sw,axis=1), np.expand_dims(indpartcorr45_sw,axis=1), partcorrIC), axis=1)
+    #wta_classification 1 ~ 44, 2 ~ 45, 3+ ~ ICA components
+    area_assignments_ba44_45_ICA = np.argmax( imaps, axis=1) + 1;
 
-    mask = np.zeros((32492)); np.put(mask, cort, 1)
-    bm_leftown = nib.cifti2.BrainModelAxis.from_mask(mask, "LEFT_CORTEX")
+    #wta_classification 1 ~ 44, 2 ~ 45, 0 ~ nieghter
+    area_assignments_ba44_45_None = np.where(area_assignments_ba44_45_ICA>2, 0, area_assignments_ba44_45_ICA)
 
-    nih_scal = nib.cifti2.Cifti2Header.from_axes((new_scalar_axis, bm_leftown))
+    '''def fill_sub(subset_indices, subset ,tar_size=29696): x = np.zeros(tar_size) x[subset_indices] = subset; return x;'''
 
-    cimg = nib.Cifti2Image( area_assignments_ba44_45_none.reshape((1,29696)), nih_scal)
-    cimg.to_filename(area_assignment_file);
+    fbaa1 = np.zeros((29696)); fbaa1[broca_reduced] = area_assignments_ba44_45_None
+    fbaa2 = np.zeros((29696)); fbaa2[broca_reduced] = area_assignments_ba44_45_ICA
+    fbaa3 = np.zeros((29696)); fbaa3[broca_reduced] = indpartcorr44_sw
+    fbaa4 = np.zeros((29696)); fbaa4[broca_reduced] = indpartcorr45_sw
 
-    # get edgelist 44 where ==0; reference in cort (?)
+    E3A = np.loadtxt('/data/hu_robertscholz/Desktop/owncloud-gwdg/code/neuralgradients/BrocaLabels/HCP/automated_labels/results/%s_ICA_indiv_SW_rm_0p4.1D' % (sub))
+    EMW44 = np.loadtxt('/data/hu_robertscholz/Desktop/owncloud-gwdg/code/neuralgradients/BrocaLabels/HCP/manual_labels/area44/BA44_%s.1D' % (sub))
+    EMW45 = np.loadtxt('/data/hu_robertscholz/Desktop/owncloud-gwdg/code/neuralgradients/BrocaLabels/HCP/manual_labels/area45/BA45_%s.1D' % (sub)) +1
+    #hcp_tools.save_dscalar( e3afile, np.expand_dims(E3A[cort],axis=0), brainmodel = brainmodel, scalar_names = ['Estrids_Stuff'])
+
+    indv_assignm_file =os.path.join(out_folder_p,"results", "AutoAreaLabelFinal_HCP_indv_" + sub+"_LH29k_WTA44_45.dscalar.nii")
+
+    hcp_tools.save_dscalar( indv_assignm_file, np.stack( (fbaa1,fbaa2,E3A[cort], (EMW44+EMW44)[cort],fbaa3,fbaa4)), brainmodel = brainmodel, scalar_names = ['WTA_44_45_None', 'WTA_44_45_ICA', 'E3A-EstridsAutoAreaAssignm', 'EMW - EstrisManualWork','BA44weight', 'BA45weight'])
+    print("Saved all important results to: ",indv_assignm_file)
+
 
 
 

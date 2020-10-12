@@ -69,3 +69,92 @@ def partial_corr(C):
             P_corr[j, i] = corr
         
     return P_corr
+
+
+
+'''
+## copied from: https://github.com/raphaelvallat/pingouin/blob/master/pingouin/correlation.py
+cvar = np.atleast_2d(C[y_covar].to_numpy())
+beta_y = np.linalg.lstsq(cvar, C[y].to_numpy(), rcond=None)[0]
+res_y = C[y].to_numpy() - cvar @ beta_y
+
+
+## reconfirm with matlab on complex case
+## simple case was already confirmed, as below
+
+
+#cvar = np.atleast_2d(C[y_covar].to_numpy())
+cvar = controls44; # (29696, 18)
+yvar =  grp_conn_tmpl_44;  # (29696,)
+xvar = ind_cor_mat_broca; # (29696, 1398)
+
+beta_y = np.linalg.lstsq(cvar, yvar, rcond=None)[0]     # shape (18,)
+res_y = yvar - np.matmul(cvar, beta_y)      # shape: (29696,)
+beta_x = np.linalg.lstsq(cvar, xvar, rcond=None)[0]     # shape (18, 1398)
+res_x = xvar - np.matmul(cvar, beta_x)  # shape (29696, 1398)
+
+# if res_x is just one dimension
+if len(res_x.shape)>1: 
+ np.corrcoef(res_x, res_y)[0,1]
+
+# if it has more entries ...
+else:
+partcorr44 = np.zeros(res_x.shape[1]);              # (1398,)
+for src_vertex_n in range(res_x.shape[1]):
+  partcorr44[src_vertex_n] = np.corrcoef(res_x[:, src_vertex_n], res_y)[0,1]
+
+
+## works the same as in matlab as in python
+xvar = np.array([5,4,3,1,2])
+cvar =  np.array([[1,2,3,4,5],[1,1,1,1,1]]) #[1,2,3,4,5; 1,1,1,1,1]
+yvar  = np.array([1,4,1,5,1])
+
+# matlab: partialcorr(x',y', c') -> -0.7655
+# python pengouin_part_corr_copy(xvar, yvar, cvar.T) -> -0.7654530935859536
+# python np.corrcoef(res_x, res_y)[0,1] -> -0.7654530935859536
+
+xvar = np.array([[5,4,3,1,2], [4,3,3,1,2]])
+
+# matlab: -0.7655; -0.9359
+# python: array([-0.76545309, -0.93585673])
+
+'''
+
+
+'''
+# xvar can have only one column/row (?), yvar can only have one, cvar can have any number again
+# rows always reflect the vertex count
+def pengouin_part_corr_copy(xvar, yvar, cvar):
+    beta_y = np.linalg.lstsq(cvar, yvar, rcond=None)[0]     # shape (18,)
+    res_y = yvar - np.matmul(cvar, beta_y)      # shape: (29696,)
+    beta_x = np.linalg.lstsq(cvar, xvar, rcond=None)[0]     # shape (18, 1398)
+    res_x = xvar - np.matmul(cvar, beta_x)  # shape (29696, 1398)
+    if len(res_x.shape)==1: 
+     partcorr44 = np.corrcoef(res_x, res_y)[0,1]
+     # if it has more entries ...
+    else:
+     partcorr44 = np.zeros(res_x.shape[1]);              # (1398,)
+     for src_vertex_n in range(res_x.shape[1]):
+      partcorr44[src_vertex_n] = np.corrcoef(res_x[:, src_vertex_n], res_y)[0,1]
+    return partcorr44
+'''
+
+# xvar can have any number of rows, yvar can only have one, cvar can have any number again
+# does the partial correlation for each of the rows in xvar with the only availabel row in yvar, always controlling for all cvar rows
+# its quite some messy code, but aparently it works ...
+def pengouin_part_corr_copy(xvar, yvar, cvar):
+    cvar_t = cvar.T
+    beta_y = np.linalg.lstsq(cvar_t, np.atleast_2d(yvar).T, rcond=None)[0]     # shape (18,)
+    res_y = yvar - np.matmul(cvar_t, beta_y).T      # shape: (29696,)
+    beta_x = np.linalg.lstsq(cvar_t, np.atleast_2d(xvar).T, rcond=None)[0]     # shape (18, 1398)
+    res_x = (xvar - np.matmul(cvar_t, beta_x).T).T   # shape (29696, 1398)
+    if len(res_x.shape)==1: 
+     partcorr44 = np.corrcoef(res_x, res_y)[0,1]
+     # if it has more entries ...
+    else:
+     partcorr44 = np.zeros(res_x.shape[1]);              # (1398,)
+     for src_vertex_n in range(res_x.shape[1]):
+      partcorr44[src_vertex_n] = np.corrcoef(res_x[:,src_vertex_n], res_y.squeeze())[0,1]
+    return partcorr44.squeeze()
+
+

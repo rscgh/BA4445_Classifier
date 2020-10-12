@@ -76,7 +76,10 @@ then open the individual files generated above and use them as overlays ...
 
 
 
+#estrid_auto_area_assignments 
+E3A = np.loadtxt('/data/hu_robertscholz/Desktop/owncloud-gwdg/code/neuralgradients/BrocaLabels/HCP/automated_labels/results/103414_ICA_indiv_SW_rm_0p4.1D')
 
+hcp_tools.save_dscalar( indv_assignm_file, np.stack( (fbaa1,fbaa2,fbaa3,fbaa4)), brainmodel = brainmodel, scalar_names = ['Estrids_Stuff'])
 
 ### Scalar Image:
 
@@ -98,6 +101,14 @@ cimg.to_filename('prob44b.LH.dscalar.nii');
 ### this is the correct version:
 cimg = nib.Cifti2Image( prob44b[cort].reshape((1,29696)), nih_scal)
 cimg.to_filename('prob44b_cort.LH.dscalar.nii');
+
+
+
+nih_scal = nib.cifti2.Cifti2Header.from_axes((new_scalar_axis, bm_leftown))
+sci = "/data/hu_robertscholz/Desktop/owncloud-gwdg/code/neuralgradients/BrocaLabels/HCP/manual_labels/area45/BA45_103414.1D"
+img = np.loadtxt(sci)	#shape 32492,
+cimg = nib.Cifti2Image( img[cort].reshape((1,29696)), nih_scal)
+cimg.to_filename('BA45_Manual_103414.cort.LH.dscalar.nii');
 
 
 
@@ -259,3 +270,245 @@ connection was from a subset of cortical areas to all of them (e.g. injection si
 
 
 ##########################################################################################################################################################
+
+
+hcp_all_path = '/data/t_hcp/S500_2014-06-25/_all'
+img = nib.load(hcp_all_path + '/100307/MNINonLinear/Results/rfMRI_REST1_LR/rfMRI_REST1_LR_Atlas_hp2000_clean.dtseries.nii')
+cort = list(img.header.matrix._mims[1].brain_models)[0].vertex_indices._indices
+
+
+## visualize correspondencies with internal array structure (array indices) and vertex assignment:
+
+
+# image with 32492 svoxels/vertices per hemisphere
+sulci = nib.load("/data/t_hcp/S500_2014-06-25/_all/103414/MNINonLinear/fsaverage_LR32k/103414.sulc.32k_fs_LR.dscalar.nii").get_fdata().squeeze()
+sulci_LH = sulci[:32492]
+
+
+med_wall_indices = [x for x in range(32492) if x not in cort]
+med_wall_values  = np.array(med_wall_indices)+ 62492				# jjust make it high enough so that it appears in a different color
+
+data = np.zeros((32492))
+data[med_wall_indices] = med_wall_values;
+data[cort] = cort;
+
+new_scalar_axis2 = nib.cifti2.ScalarAxis(['visual']);
+bm_leftownbg = nib.cifti2.BrainModelAxis.from_mask(np.ones((32492)), "LEFT_CORTEX")
+nih_scal_big = nib.cifti2.Cifti2Header.from_axes((new_scalar_axis2, bm_leftownbg))
+
+cimgvis = nib.Cifti2Image( data.reshape((1,32492)), nih_scal_big)
+cimgvis.to_filename('visual.LH+MW.dscalar.nii');
+
+# image with 29696 vertices for only the left hemisphere
+
+mask = np.zeros((32492)); np.put(mask, cort, 1)
+bm_leftown = nib.cifti2.BrainModelAxis.from_mask(mask, "LEFT_CORTEX")
+nih_scal = nib.cifti2.Cifti2Header.from_axes((new_scalar_axis2, bm_leftown))
+cimgvis2 = nib.Cifti2Image( data[cort].reshape((1,29696)), nih_scal)
+cimgvis2.to_filename('visual.LH.dscalar.nii');
+
+
+
+
+
+##########################################################################################################################################################
+
+### saving multiple ICA components and their sources
+import  os, hdf5storage
+import numpy as np
+import nibabel as nib
+
+ind_ica_fn =os.path.join("/data/pt_02189/MARHCP/BrocaConn/","indv", "ica_HCP_indv_103414_LH29k_20comps.mat")
+indv_ica_comps = hdf5storage.loadmat(ind_ica_fn)['ic']	#  (29696,n_components)
+n_comps = indv_ica_comps.shape[1];
+
+mask = np.zeros((32492)); np.put(mask, cort, 1)
+bm_leftown = nib.cifti2.BrainModelAxis.from_mask(mask, "LEFT_CORTEX")
+new_scalar_axis3 = nib.cifti2.ScalarAxis(['ic'+str(n) for n in range(n_comps) ]);
+nih_scal3 = nib.cifti2.Cifti2Header.from_axes((new_scalar_axis3, bm_leftown))
+cimgvis3 = nib.Cifti2Image( indv_ica_comps.reshape((n_comps,29696)), nih_scal3)
+cimgvis3.to_filename('ica_HCP_indv_103414_LH29k_20comps.LH.dscalar.nii');
+
+
+
+
+
+
+
+
+## run an ICA on the connectivity patterns; not on the timeseries
+from nilearn.decomposition.canica import CanICA
+import os
+import hdf5storage
+
+icm_fn = "/data/pt_02189/MARHCP/BrocaConn" + '/indv/CON_HCP_indv_103414_broca_LH29k_con.mat'; 
+indv_small_conmat = hdf5storage.loadmat(icm_fn)['icm']	#shape: (29696, 1396)
+
+indv_broca_nvox= indv_small_conmat.shape[1]
+indv_small_conmat_prep = indv_small_conmat.T.reshape((indv_broca_nvox, 1,1, 29696))	# so that we have the loadings of each brocas svoxel (1396) for each of the components =20
+
+''' canICA has some problem ...
+#individual files from filenames contain data of  (29696, 1, 1, 4800)
+#canica = CanICA(mask=os.path.join(out_folder_p,'mask.nii.gz'), n_components=20, smoothing_fwhm=0., threshold=None, verbose=10, random_state=0, n_jobs=20)
+#canica.fit(filenames)   # -> canica.components_ of shape (20, 29696)
+canica = CanICA(mask=np.ones((indv_broca_nvox,1,1)), n_components=20, smoothing_fwhm=0., threshold=None, verbose=10, random_state=0, n_jobs=20)
+canica.fit(indv_small_conmat_prep)   # -> canica.components_ of shape (20, 1396)
+'''
+
+from sklearn.decomposition import FastICA
+#https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.FastICA.html
+
+#### try less ICA components and save them (i.e. 3-4)
+
+fica = FastICA(n_components=20)
+fica.fit(indv_small_conmat_prep.squeeze().T)
+fica.components_.shape							# shape (20, 1396)
+ica = fica
+
+#fica.fit_transform(indv_small_conmat_prep.squeeze().T)
+#fica.components_.shape							# shape (20, 1396)
+
+## find loadins:
+
+n_comps = fica.components_.shape[0];
+fica.fit(indv_small_conmat_prep.squeeze())		# fica.components_ -> shape (20, 29696)
+
+loadings = np.zeros((indv_broca_nvox, n_comps)) # 1389, 20
+
+for cn in range(n_comps):
+   for src in range(indv_broca_nvox):
+    x = indv_small_conmat[:, src]		#(29696, 1396) -> (29696,)
+    y = fica.components_[cn, :]
+    loadings[src,cn] = np.corrcoef(x,y)[0][1]
+
+
+## plotting Indivudal ica components
+from matplotlib import pyplot as plt
+
+x = ica.components_[0,:]
+y = ica.components_[1,:]
+plt.scatter(x, y)
+
+## plotting more in a grid:
+
+for x in range(min(9,int(20/2))):
+  # for pairs of components, limited to nine pairs
+  plt.subplot(3,3,x+1)
+  plt.scatter(ica.components_[x*2,:], ica.components_[(x*2)+1,:])
+
+plt.show()
+
+## saving them as 
+
+import glob
+bmf = glob.glob(os.path.join("/data/pt_02189/MARHCP/BrocaConn/",'indv', 'BROCAMSK*103414*bin.txt'))[0]
+indv_broca_mask = np.loadtxt(bmf).astype(np.int).tolist()
+indv_broca_indc = np.argwhere(np.array(indv_broca_mask)==1).squeeze().tolist()
+
+n_comps = ica.components_.shape[0]
+nih_scal3 = nib.cifti2.Cifti2Header.from_axes((nib.cifti2.ScalarAxis(['ic'+str(n) for n in range(20) ]), bm_leftown))
+xdata = np.zeros((n_comps,29696))
+#xdata[:,indv_broca_indc] = ica.components_
+xdata[:,indv_broca_indc] = loadings.T
+cimgvis4 = nib.Cifti2Image( xdata, nih_scal3)
+#cimgvis4.to_filename('CON_HCP_indv_103414_broca_LH29k_ICA_20comps.LH.dscalar.nii');
+cimgvis4.to_filename('CON_HCP_indv_103414_broca_LH29k_ICA_20comps_loadings.LH.dscalar.nii');
+
+xdata[:, :] = loadings.T
+cimgvis5 = nib.Cifti2Image( fica.components_, nih_scal3)
+cimgvis5.to_filename('CON_HCP_indv_103414_broca_LH29k_ICA_20comps.LH.dscalar.nii');
+
+
+
+### Do T-SNE on the connectivity matrix (or alternatively the extracted ICA components)
+#https://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html
+
+from sklearn import manifold 
+tsn = manifold.TSNE()
+#tsn.fit(fica.components_)
+tsn.fit(indv_small_conmat_prep.squeeze())
+x = tsn.embedding_[:,0]
+y = tsn.embedding_[:,1]
+plt.scatter(x, y)
+plt.show()
+
+
+
+## UMAP
+reducer = umap.UMAP()
+embedding = reducer.fit_transform(indv_small_conmat.T)		# needs n_samples, n_features ~ ; conmat is n_features, n_samples, i.e. shape: (29696, 1396)
+embedding.shape
+
+
+
+## Agglo clustering
+from sklearn.cluster import AgglomerativeClustering
+from scipy.cluster.hierarchy import dendrogram
+import matplotlib.pyplot as plt
+import numpy as np
+
+# sklearn neeeds to be updated
+model = AgglomerativeClustering(n_clusters=None, distance_threshold=0)
+#model = AgglomerativeClustering(n_clusters=10, compute_full_tree=True)
+model = model.fit(indv_small_conmat_prep.squeeze())
+model.labels_
+
+plt.scatter(x, y, c=model.labels_)	# from tsne
+plt.show()
+
+model = AgglomerativeClustering(n_clusters=4, compute_full_tree=True)
+model = model.fit(indv_small_conmat_prep.squeeze())
+model.labels_
+
+plt.scatter(x, y, c=model.labels_)	# from tsne
+plt.show()
+
+for x in range(min(9,int(20/2))):
+  # for pairs of components, limited to nine pairs
+  plt.subplot(3,3,x+1)
+  #plt.scatter(canica.components_[x*2,:], canica.components_[(x*2)+1,:])
+  plt.scatter(canica.components_[x*2,:], canica.components_[(x*2)+1,:], c= model2.labels_)
+
+plt.show()
+
+
+
+plot_dendrogram(model, truncate_mode='level', p=5)
+
+def plot_dendrogram(model, **kwargs):
+    # Create linkage matrix and then plot the dendrogram
+    # create the counts of samples under each node
+    counts = np.zeros(model.children_.shape[0])
+    n_samples = len(model.labels_)
+    for i, merge in enumerate(model.children_):
+        current_count = 0
+        for child_idx in merge:
+            if child_idx < n_samples:
+                current_count += 1  # leaf node
+            else:
+                current_count += counts[child_idx - n_samples]
+        counts[i] = current_count
+    
+    linkage_matrix = np.column_stack([model.children_, model.distances_, counts]).astype(float)
+    # Plot the corresponding dendrogram
+    dendrogram(linkage_matrix, **kwargs)
+
+
+'''
+https://towardsdatascience.com/the-5-clustering-algorithms-data-scientists-need-to-know-a36d136ef68?gi=5ee86389c12e
+https://scikit-learn.org/stable/modules/generated/sklearn.cluster.AgglomerativeClustering.html#sklearn.cluster.AgglomerativeClustering.fit
+https://scikit-learn.org/stable/auto_examples/cluster/plot_digits_linkage.html#sphx-glr-auto-examples-cluster-plot-digits-linkage-py
+https://scikit-learn.org/stable/auto_examples/cluster/plot_agglomerative_dendrogram.html#sphx-glr-auto-examples-cluster-plot-agglomerative-dendrogram-py
+https://docs.scipy.org/doc/scipy/reference/generated/scipy.cluster.hierarchy.dendrogram.html#scipy.cluster.hierarchy.dendrogram
+'''
+
+
+## wta display of strongest components?
+## or save all components
+## bfn = os.path.join(out_folder_p,'indv', 'BROCAMSK_HCP_indv_%s_%i_of_%i_bin.txt' % (sub, np.count_nonzero(broca_reduced) , len(cort)))
+# bmf = glob.glob(os.path.join(out_folder_p,'indv', 'BROCAMSK_*bin.txt))[0]
+# indv_broca = np.loadtxt(bmf).astype(np.int).tolist()
+
+dada = np.zeros((20, 29696));
+dada[:, indv_broca] = canica.components_				# wta or indv
+
