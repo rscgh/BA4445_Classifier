@@ -544,7 +544,7 @@ for sub in subs:
 
     indv_assignm_file =os.path.join(out_folder_p,"results", "AutoAreaLabelFinal_HCP_indv_" + sub+"_LH29k_WTA44_45.dscalar.nii")
 
-    hcp_tools.save_dscalar( indv_assignm_file, np.stack( (fbaa1,fbaa2,E3A[cort], (EMW44+EMW44)[cort],fbaa3,fbaa4)), brainmodel = brainmodel, scalar_names = ['WTA_44_45_None', 'WTA_44_45_ICA', 'E3A-EstridsAutoAreaAssignm', 'EMW - EstrisManualWork','BA44weight', 'BA45weight'])
+    hcp_tools.save_dscalar( indv_assignm_file, np.stack( (fbaa1,fbaa2,E3A[cort], (EMW44+EMW45)[cort],fbaa3,fbaa4)), brainmodel = brainmodel, scalar_names = ['WTA_44_45_None', 'WTA_44_45_ICA', 'E3A-EstridsAutoAreaAssignm', 'EMW - EstrisManualWork','BA44weight', 'BA45weight'])
     print("Saved all important results to: ",indv_assignm_file)
 
 
