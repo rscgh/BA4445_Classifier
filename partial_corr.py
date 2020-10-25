@@ -26,7 +26,6 @@ Date: Nov 2014
 Author: Fabian Pedregosa-Izquierdo, f@bianp.net
 Testing: Valentina Borghesani, valentinaborghesani@gmail.com
 
-new comment
 """
 
 
