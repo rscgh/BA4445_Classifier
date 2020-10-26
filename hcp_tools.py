@@ -25,6 +25,128 @@ import nibabel as nib
 import numpy as np
 import subprocess
 
+from matplotlib import pyplot as plt
+
+
+############################
+# Global import data
+
+
+cort = np.loadtxt('res/indices_LH_29696_of_32492.txt').astype(np.int).tolist()
+
+mask = np.zeros((32492)); np.put(mask, cort, 1)
+bm_leftown = nib.cifti2.BrainModelAxis.from_mask(mask, "LEFT_CORTEX")
+
+
+
+
+############################
+# Saving files
+
+
+
+def save_LH_29k_dtseries():
+    pass;
+
+
+
+
+# this is not really functional yet ...
+def get_LH_29k_brainmodel(mask_indices = None, extract_brain_mode_from_file = None, area_list = ["LH"] ):
+
+  if mask_indices is None: 
+      if extract_brain_mode_from_file is None:
+        extract_brain_mode_from_file = '/data/t_hcp/S500_2014-06-25/_all/100307/MNINonLinear/Results/rfMRI_REST1_LR/rfMRI_REST1_LR_Atlas_hp2000_clean.dtseries.nii';
+
+      img = nib.load(extract_brain_mode_from_file)
+      cort = list(img.header.matrix._mims[1].brain_models)[0].vertex_indices._indices
+      mask_indices = cort
+
+  mask = np.zeros((32492)); np.put(mask, mask_indices, 1)
+  brainmodel = nib.cifti2.BrainModelAxis.from_mask(mask, "LEFT_CORTEX")
+  return brainmodel
+
+
+
+# data should be numpy array of (n_scalars, n_vertices) i.e. 10, 29696
+def save_dscalar(filename, data, brainmodel, scalar_names = None, subset = None):
+
+  n_scalars = data.shape[1];
+  n_vertices = brainmodel.size;    # i.e. 29696 for only left hemisphere in 32k_FS_LR
+
+  if scalar_names is None: 
+    scalar_names = [str(x) for x in range(data.shape[1])]
+
+  new_scalar_axis = nib.cifti2.ScalarAxis(scalar_names);
+  ni_header = nib.cifti2.Cifti2Header.from_axes((new_scalar_axis, brainmodel))
+
+  if not(subset is None):
+    newdata = np.zeros((n_scalars, n_vertices))
+    newdata[:,subset] = data;
+    data = newdata;
+
+  nib.Cifti2Image( data, ni_header).to_filename(filename);
+  return;
+
+
+# Visualization and saving helper functions:
+
+def quick_cifti_ds(data, dsnames = None, fn = None, return_img=False):
+  global bm_leftown;
+  if dsnames is None: dsnames = ['img%i' % (x) for x in range(data.shape[0])]
+  cimgvis4 = nib.Cifti2Image(data, nib.cifti2.Cifti2Header.from_axes((nib.cifti2.ScalarAxis(dsnames), bm_leftown)))
+  if not (fn is None): cimgvis4.to_filename(fn);
+  if return_img: return cimgvis4;
+  return;
+
+def quick_show_FS32k(mesh="flat", ref="S1200"):
+  #global ...
+  pass
+
+
+from matplotlib.ticker import MaxNLocator
+
+def imtlshow(img, plot = plt, ax = plt.gca(), show = True):
+ plt.imshow(img.T)
+ tlshow(show=show)
+
+def tlshow(plot = plt, ax = plt.gca(), show=True):
+    #ax.set_ylim(ax.get_ylim()[::-1])        # invert the axis
+    #ax.yaxis._update_ticks()
+    #ax.yaxis.set_ticks(ax.yaxis.get_major_ticks()[::-1]) # set y-ticks
+    #ax.yaxis.tick_left()                    # remove right y-Ticks
+    ax.invert_yaxis()
+    ax.set_ylim(ax.get_ylim()[::-1])
+    ax.xaxis.tick_top()                     # and move the X-Axis      
+    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+    if show: plt.show()
+
+
+
+
+
+
+
+
+
+def get_individual_IFG(sub, hcp_all_path = '/data/t_hcp/S500_2014-06-25/_all'):
+    anatlabp = os.path.join(hcp_all_path, sub, 'MNINonLinear/fsaverage_LR32k/%s.L.aparc.32k_fs_LR.label.gii' % (sub))
+    AnatLabels = nib.load(anatlabp) #AnatLabels2 = nib.gifti.giftiio.read(anatlabp)
+    #AnatLabels.print_summary()
+    #AnatLabels.get_labeltable().labels[20].label #-> u'L_parstriangularis'
+    #AnatLabels.darrays[0].data.shape #-> (32492,); elements: array([10, 29, 24, ..., 15, 15, 15], dtype=int32)
+    AnatLabelsData= AnatLabels.darrays[0].data
+    op = AnatLabelsData == 18;                          # shape: (32492,)
+    tri = AnatLabelsData == 20;
+    #np.count_nonzero((op+tri)) # -> 989 voxels in the combined region
+    return [op, tri];
+
+
+
+
+
+
 
 #previously called: t_series
 def preprocess_and_load_tseries(subject_dir,      # i.e. "/scr/murg2/HCP_Q3_glyphsets_left-only/100307"
@@ -214,9 +336,9 @@ def preprocess_and_load_tseries(subject_dir,      # i.e. "/scr/murg2/HCP_Q3_glyp
             K = np.ndarray(shape=[n,m], dtype=init_dtype, order='F')
         else:
             if  m_last != m:
-                print "Warning, %s contains time series of different length" % (subject_dir)
+                print("Warning, %s contains time series of different length" % (subject_dir))
             if  n_last != n:
-                print "Warning, %s contains different count of brain nodes" % (subject_dir)
+                print("Warning, %s contains different count of brain nodes" % (subject_dir))
             K.resize([n, K.shape[1]+m])
 
         # concatenation of (normalized) time-series, column-wise
@@ -239,52 +361,3 @@ def preprocess_and_load_tseries(subject_dir,      # i.e. "/scr/murg2/HCP_Q3_glyp
     return K
 
 
-
-
-############################
-# Saving files
-
-
-
-def save_LH_29k_dtseries():
-    pass;
-
-
-
-
-# this is not really functional yet ...
-def get_LH_29k_brainmodel(mask_indices = None, extract_brain_mode_from_file = None, area_list = ["LH"] ):
-
-  if mask_indices is None: 
-      if extract_brain_mode_from_file is None:
-        extract_brain_mode_from_file = '/data/t_hcp/S500_2014-06-25/_all/100307/MNINonLinear/Results/rfMRI_REST1_LR/rfMRI_REST1_LR_Atlas_hp2000_clean.dtseries.nii';
-
-      img = nib.load(extract_brain_mode_from_file)
-      cort = list(img.header.matrix._mims[1].brain_models)[0].vertex_indices._indices
-      mask_indices = cort
-
-  mask = np.zeros((32492)); np.put(mask, mask_indices, 1)
-  brainmodel = nib.cifti2.BrainModelAxis.from_mask(mask, "LEFT_CORTEX")
-  return brainmodel
-
-
-
-# data should be numpy array of (n_scalars, n_vertices) i.e. 10, 29696
-def save_dscalar(filename, data, brainmodel, scalar_names = None, subset = None):
-
-  n_scalars = data.shape[1];
-  n_vertices = brainmodel.size;    # i.e. 29696 for only left hemisphere in 32k_FS_LR
-
-  if scalar_names is None: 
-    scalar_names = [str(x) for x in range(data.shape[1])]
-
-  new_scalar_axis = nib.cifti2.ScalarAxis(scalar_names);
-  ni_header = nib.cifti2.Cifti2Header.from_axes((new_scalar_axis, brainmodel))
-
-  if not(subset is None):
-    newdata = np.zeros((n_scalars, n_vertices))
-    newdata[:,subset] = data;
-    data = newdata;
-
-  nib.Cifti2Image( data, ni_header).to_filename(filename);
-  return;

@@ -25,8 +25,8 @@ import hdf5storage
 import hcp_tools
 from partial_corr import partial_corr
 
-
 KEEP_FIRST_SUBJ_INTERM_DATA = True;
+
 
 
 #### code was updated and corrected; to be executed with python2.7 on the MPI CBS infrastructure
@@ -103,7 +103,7 @@ for sub in subs:
     datash = data[:29696, :]                                              # (29696, 4800),    same length as cort now
     datars = np.reshape(datash, (datash.shape[0],1,1,datash.shape[1]))    # (29696, 1, 1, 4800), nessesary for nifti and CanICA
         
-    img = nib.Nifti1Image(datars, np.eye(4))
+    img = nib.Nifti1Image(datars, np.eye(4)) # (29696, 1, 1, 4800)
     img.to_filename(filename)
     filenames.append(filename)
 
