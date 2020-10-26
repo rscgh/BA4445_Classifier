@@ -25,7 +25,11 @@ the algorithm can be summarized as
 Date: Nov 2014
 Author: Fabian Pedregosa-Izquierdo, f@bianp.net
 Testing: Valentina Borghesani, valentinaborghesani@gmail.com
+
 """
+
+
+
 
 import numpy as np
 from scipy import stats, linalg
