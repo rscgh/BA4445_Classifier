@@ -21,3 +21,5 @@ Other parameters to `classify_subject` are:
 
 
 The example file in output_example also includes Estrids previous automatic and manual annotation. This is not part of the standalone_classifier and hence wont be contained in its output. But it should be present in do_all_v2.py
+
+Files can be viewed on top of standard reference meshs (i.e. S1200 or conte69 both which are aligned to FS_32k space) or the individual subject ones (MNINonlinear/fsaverage_LR32k).
