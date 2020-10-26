@@ -3,7 +3,7 @@
 
 '''
 
-based off the original script by Şeyma Bayrak, https://github.com/sheyma
+preprocess_and_load_tseries is based off the original script by Şeyma Bayrak, https://github.com/sheyma
 repository located on: https://github.com/NeuroanatomyAndConnectivity/hcp_corr
 
 code was a bit more streamlined and put up to date
@@ -260,6 +260,10 @@ def preprocess_and_load_tseries(subject_dir,      # i.e. "/scr/murg2/HCP_Q3_glyp
         right_surface_file = os.path.join(subject_dir, "MNINonLinear/fsaverage_LR32k/%s.R.midthickness.32k_fs_LR.surf.gii" % (subject_id))
         print("left_surface_file: ", left_surface_file)
 
+        if os.path.exists(local_tar_filename):
+            smooth_files.append(local_tar_filename)
+            continue; 
+
         command = "wb_command -cifti-smoothing %s 2 2 COLUMN %s -left-surface %s -right-surface %s" % (filen, local_tar_filename, left_surface_file, right_surface_file)
         print("Smoothing now: ", filen, " using the following command:\n", command)
         subprocess.call(command.split())
@@ -277,7 +281,7 @@ def preprocess_and_load_tseries(subject_dir,      # i.e. "/scr/murg2/HCP_Q3_glyp
                  'HR': 14, 'PL':15, 'PR':16, 'AL': 17, 'AR':18, 'TL':19, 
                  'TR':20 }
     
-    for x in xrange(0, cnt_files):
+    for x in range(0, cnt_files):
 
         # x = 1; x=2...
         # import nibabel as nb

@@ -60,7 +60,7 @@ bfn_tmpl = os.path.join(out_folder_p, 'BROCAMSK_HCP_indv_%s_%i_of_%i_bin.txt')
 icm_fn_tmpl = os.path.join(out_folder_p, 'CON_HCP_indv_%s_broca_LH29k_con.mat');
 
 indv_assignm_file_tmpl = os.path.join(out_folder_p, "AutoAreaLabelFinal_HCP_indv_%s_LH29k_WTA44_45.dscalar.nii")
-
+ictnew_fn_tmpl = os.path.join(out_folder_p, 'CON_HCP_indv_%s_broca_LH29k_con_tmpls_44_45.dscalar.nii'); 
 
 ### Load required data:
 
@@ -120,7 +120,8 @@ def classify_subject(subid, timeseries=None, corrthresh = 0.4, save_intermediate
       #cimg = nib.Cifti2Image(data.T[:, :29696], nih_full)
       #cimg.to_filename(os.path.join(out_folder_p, "indv",'rsfmri_103414_1-4.LH.smooth.dtseries.nii'));
 
-      tsimg = nib.Nifti1Image(datars, np.eye(4)) # (29696, 1, 1, 4800); img.to_filename(filename)
+      tsimg = nib.Nifti1Image(timeseries.reshape((29696, 1, 1, timeseries.shape[1])), np.eye(4)) # (29696, 1, 1, 4800); img.to_filename(filename)
+      print("Timeseries.shape: ", timeseries.shape)
 
   ###############################################################################
   ## Individual ICA
@@ -148,7 +149,7 @@ def classify_subject(subid, timeseries=None, corrthresh = 0.4, save_intermediate
   #nib.Cifti2Image(Aind, nih).to_filename(ind_ica_fn_tmpl_cifti.replace("%s",sub));
 
   if save_intermediate:
-    quick_cifti_ds(indv_ica.T, dsnames = ['comp' + str(x+1) for x in indv_ica.shape[1]], fn=ind_ica_fn_tmpl_cifti.replace("%s",sub))
+    quick_cifti_ds(indv_ica.T, dsnames = ['comp' + str(x+1) for x in range(indv_ica.shape[1])], fn=ind_ica_fn_tmpl_cifti.replace("%s",sub))
 
 
           
