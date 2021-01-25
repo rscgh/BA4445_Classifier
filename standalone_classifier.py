@@ -99,7 +99,7 @@ group_ica = hdf5storage.loadmat(group_ica_fn)['ic']
 
 
 # timeseries should be only include the left hemisphere and be of shape (29696, 4800)
-def classify_subject(subid, timeseries=None, corrthresh = 0.4, save_intermediate=False, template = None):
+def classify_subject(subid, timeseries=None, corrthresh = 0.4, save_intermediate=False, template = None, cnt_files=4):
 
   sub = subid
   #  variables for classifier 
@@ -113,7 +113,7 @@ def classify_subject(subid, timeseries=None, corrthresh = 0.4, save_intermediate
 
   if timeseries is None:
 
-      data = preprocess_and_load_tseries(hcp_all_path + "/%s" % sub, sub, N_first = 0, N_cnt = 32492, smoothing = True, normalize=True, temp_dir= out_folder_p, keep_tmp_files= save_intermediate, template=template) # returns (4800, 32492)
+      data = preprocess_and_load_tseries(hcp_all_path + "/%s" % sub, sub, N_first = 0, N_cnt = 32492, smoothing = True, normalize=True, temp_dir= out_folder_p, keep_tmp_files= save_intermediate, template=template, cnt_files=cnt_files) # returns (4800, 32492)
 
       # get only what is relevant for the left side
       timeseries = data[:29696, :];

@@ -247,6 +247,7 @@ def preprocess_and_load_tseries(subject_dir,      # i.e. "/scr/murg2/HCP_Q3_glyp
         #raise Exception('Not enough files found!')
 
     files = files[:cnt_files]
+    print(files)
     smooth_files = []
 
     ### Smoothing 

@@ -3,7 +3,7 @@
 
 ## Usage:
 
-Before starting using the script, make sure you adjust the paths in both `standalone_classifier.py` as well as `hcp_tools.py` to fit your local system and HCP-dataset version. Normally all important paths should be defined in the beginning.
+Before starting using the script, make sure you adjust the paths in both `standalone_classifier.py` as well as `hcp_tools.py` to fit your local system and HCP-dataset version. Normally all important paths should be defined in the beginning of the file.
 
 ```
 python3
@@ -19,7 +19,7 @@ Other parameters to `classify_subject` are:
 * timeseries, which should be a numpy array only containing data for the left hemisphere and be of shape (29696, n_timepoints) and already smoothed and normalized; if None, which is the default, the 4 resting state series are gathered from the HCP reslease and automatically preprocessed using a wb_command
 * save_intermediate, which if set to True will save alot of intermediate files to the output directory (i.e. the 4 smoothed resting state timeseries, ICA components etc)
 * template, that is the glob-match string to the resting state run(s), relative to the subjects folder, i.e. `MNINonLinear/Results/rfMRI_REST?_??/rfMRI_REST?_??_Atlas_hp2000_clean.dtseries.nii`
-
+* cnt_files=4, defines the number of resting state runs to be used, in case the template/selector matches multiple files
 
 The example file in output_example also includes Estrids previous automatic and manual annotation. This is not part of the standalone_classifier and hence wont be contained in its output. But it should be present in do_all_v2.py
 
