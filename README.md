@@ -160,12 +160,6 @@ Now copy the `standalone_classifier.py` as `standalone_classifier_new.py` and ed
 ```python
 hcp_all_path = '/data/pt_02189/Data/HcpData'
 out_folder_p = '/data/pt_02189/Data/HcpData_classifyBA4445'    # make sure this folder exisits
-
-# remove (if present):
-subj_list_path = '/data/pt_02189/MARHCP/BrocaConn/subject_list_101.txt'
-subs = np.loadtxt(subj_list_path, dtype=str)  # should contain individual rows of strings like '100307'
-subs = [sub for sub in subs if sub != '111009'] # this subject is not existing in the HCP500 distribution
-
 ```
 
 You can now run the classifier with the following parameters (classification only takes around 1-2mins):
