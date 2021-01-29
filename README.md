@@ -71,7 +71,7 @@ mappings:
 anat:
     anatT1:  # this name doesn't matter
         id: t1  # identifier to this type of scan
-	
+
 func:
     metadata:
       RepetitionTime: 3.2
