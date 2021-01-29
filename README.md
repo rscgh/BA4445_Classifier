@@ -5,8 +5,8 @@
 
 Before starting using the script, make sure you adjust the paths in both `standalone_classifier.py` as well as `hcp_tools.py` to fit your local system and HCP-dataset version. Normally all important paths should be defined in the beginning of the file.
 
-```
-python3
+```python
+# python3
 
 from standalone_classifier import *
 
