@@ -33,7 +33,7 @@ requires wb_command to be on the system path
 '''
 
 # for testing purpose only
-sub = '103414'
+#sub = '103414'
 
 
 ### Input/Resource Data; as in requires the following files: 
@@ -41,7 +41,7 @@ sub = '103414'
 hcp_all_path = '/data/t_hcp/S500_2014-06-25/_all'
 out_folder_p = '/data/pt_02189/MARHCP/BrocaConn/output'
 
-subj_list_path = '/data/pt_02189/MARHCP/BrocaConn/subject_list_101.txt'
+#subj_list_path = '/data/pt_02189/MARHCP/BrocaConn/subject_list_101.txt'
 
 grconntmplfn = 'res/CON_HCP_all100_broca_LH29k_con_tmpls_44_45.mat'
 group_ica_fn = 'res/ica_HCP_all100_LH29k_20comps.mat'
@@ -71,8 +71,8 @@ img = nib.load('/data/t_hcp/S500_2014-06-25/_all/100307/MNINonLinear/Results/rfM
 cort = list(img.header.matrix._mims[1].brain_models)[0].vertex_indices._indices
 '''
 
-subs = np.loadtxt(subj_list_path, dtype=str)  # should contain individual rows of strings like '100307'
-subs = [sub for sub in subs if sub != '111009'] # this subject is not existing in the HCP500 distribution
+#subs = np.loadtxt(subj_list_path, dtype=str)  # should contain individual rows of strings like '100307'
+#subs = [sub for sub in subs if sub != '111009'] # this subject is not existing in the HCP500 distribution
 cort = np.loadtxt(indices_fn).astype(np.int).tolist()
 
 
