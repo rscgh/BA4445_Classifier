@@ -33,25 +33,65 @@ Files can be viewed on top of standard reference meshs (i.e. S1200 or conte69 bo
 
 First you will have to convert the resting state runs of your subjects into the HCP FS32k space. One way to do that is to start out with a volumetric dataset that at least needs to include a structural image and a resting state run. Prior to classification this would need to be processed as follows
 
-* restructuring into a bids complient format
+* restructuring into a [bids](https://bids.neuroimaging.io/) complient format
 * extraction of the surface and conversion into the HCP fs_LR32k format
 
 
 ### Transformation into a bids compliant dataset
-In case your dataset is not yet BIDS compliant, you can use tools such as [bidsify]():
+
+You might start out with a dataset looking like:
+
+```
+/data/pt_02189/Data/RawDataset/...
+   sub_0001Dirk/rs.nii.gz
+               /t1.nii.gz
+   ...
+```
+
+As it is not yet BIDS compliant, you can use tools such as [bidsify](https://github.com/NILAB-UvA/bidsify) to make it:
+
 `pip3 install bidsify`
+
+You will need to create a `bidsify_config.yml` file to define the mappings:
 
 ```YAML
 
+options:
+    mri_ext: nifti  # alternatives: nifti/dcm/DICOM
+    debug: True  # alternative: True, prints out a lot of stuff
+    n_cores: -1  # number of CPU cores to use (for some operations)
+    subject_stem: sub_ # subject identifier
+    deface: True  # whether to deface structural scans
+    spinoza_data: False  # only relevant for data acquired at the Spinoza Centre
 
-
+mappings:
+    bold: rs
+    T1w: t1
+    
+anat:
+    anatT1:  # this name doesn't matter
+        id: t1  # identifier to this type of scan
+	
+func:
+    metadata:
+      RepetitionTime: 3.2
+      TaskName: ShortRestingState
+    
+    rs01:
+        id: rs.nii.gz
+        task: rest01
 ```
 
+Then you can run bidsify from the command line or from within python:
+
 ```python
+
+## actual bidsify procedure
+
 import bidsify
 bidsify.bidsify("/data/pt_02189/Data/bidsify_config.yml", "/data/pt_02189/Data/RawDataset", "/data/pt_02189/Data/BidsData", False)
 
-## as bidsify currently still omits creating json files from time to time, we have to create them by hand
+## custom: as bidsify currently still omits creating json files from time to time, we have to create them by hand
 
 import glob, nibabel as nib
 rsimgs = glob.glob("/data/pt_02189/Data/BidsData/*/func/*rest*.nii.gz")
@@ -64,9 +104,27 @@ for f in t1imgs: open(f[:-7]+".json", "w").write(r'{"DwellTime":"irrelevant"}')
 
 ```
 
-Furthermore you might have to modify the `dataset.json`, such that the funding becomes an array:
+Furthermore you might have to modify the `dataset_description.json`, such that the funding becomes an array:
 
-The result will be a BIDS compliant dataset in the style of ...
+```
+"Funding": "Put your funding sources here" 	<- wrong wrong
+"Funding": ["Put your funding sources here"]	<- correct
+```
+
+The final dataset structure looks like:#
+```
+/data/pt_02189/Data/BidsData/...
+  participants.tsv
+  dataset_description.json
+  sub-0001Dirk/
+     anat/sub-0001Dirk_T1w.nii.gz
+          sub-0001Dirk_T1w.json
+     func/sub-0001Dirk_task-rest01_bold.json
+          sub-0001Dirk_task-rest01_bold.json
+  ...
+```  
+
+You can now valudate your dataset using a [validator](https://github.com/INCF/bids-validator) (this one works within the browser and does not seem to upload data).
 
 
 ### Transformation into LR32k space using the HCP preprocessing pipeline
@@ -114,6 +172,9 @@ from standalone_classifier_new import *
 classify_subject(subid = "sub-0001Dirk", template="MNINonLinear/Results/task-rest00_acq-huhu_bold/task-rest*_bold_Atlas.dtseries.nii", cnt_files=1);
 ```
 
+The result will be:
+
+`/data/pt_02189/Data/HcpData_classifyBA4445/AutoAreaLabelFinal_HCP_indv_sub-0001Dirk_LH29k_WTA44_45.dscalar`
 
 
 
