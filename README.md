@@ -132,6 +132,8 @@ You can now valudate your dataset using a [validator](https://github.com/INCF/bi
 You can then run the standard HCP preprocessing pipeline (in case you do not have T2 files, make use of the legacy version; execution of a single subject might take around 20h; this example makes use of the bids/hcppipelines app and furthermore uses singularity for container management):
 
 ```
+# singularity commands may be different for your local setup (?)
+
 # download the bids hcppipelines app as docker container and convert to singularity
 singularity build /data/pt_02189/Data/bids_hcppipelines.img docker://bids/hcppipelines
 
