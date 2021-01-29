@@ -166,7 +166,7 @@ You can now run the classifier with the following parameters (classification onl
 
 ```python
 from standalone_classifier_new import *
-classify_subject(subid = "sub-0001Dirk", template="MNINonLinear/Results/task-rest00_acq-huhu_bold/task-rest*_bold_Atlas.dtseries.nii", cnt_files=1);
+classify_subject(subid = "sub-0001Dirk", template="MNINonLinear/Results/task-rest00_bold/task-rest*_bold_Atlas.dtseries.nii", cnt_files=1);
 ```
 
 The result will be:
