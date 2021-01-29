@@ -1,7 +1,7 @@
 # BA4445_Classifier
 
 
-## Usage:
+## Usage with HCP-released subject data:
 
 Before starting using the script, make sure you adjust the paths in both `standalone_classifier.py` as well as `hcp_tools.py` to fit your local system and HCP-dataset version. Normally all important paths should be defined in the beginning of the file.
 
@@ -24,3 +24,29 @@ Other parameters to `classify_subject` are:
 The example file in output_example also includes Estrids previous automatic and manual annotation. This is not part of the standalone_classifier and hence wont be contained in its output. But it should be present in do_all_v2.py
 
 Files can be viewed on top of standard reference meshs (i.e. S1200 or conte69 both which are aligned to FS_32k space) or the individual subject ones (MNINonlinear/fsaverage_LR32k).
+
+## Usage with other datasets
+
+First you will have to convert the resting state runs of your subjects into the HCP FS32k space. One way to do that is to start out with a BIDS complient dataset that at least needs to include a structural image and a resting state run. In case your dataset is not yet BIDS compliant, you can use tools such as 
+
+
+
+The result will be a BIDS compliant dataset in the style of ...
+
+
+You can then run the standard HCP preprocessing pipeline (in case you do not have T2 files, make use of the legacy version):
+
+
+
+The useable resting state runs are now located under:
+
+
+You can now run the classifier with the following parameters:
+
+
+
+
+
+
+
+
